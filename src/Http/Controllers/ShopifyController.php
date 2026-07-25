@@ -1,0 +1,369 @@
+<?php
+
+namespace Msdev2\Shopify\Http\Controllers;
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Carbon;
+use Msdev2\Shopify\Events\PlanPurchaseCompleted;
+use Msdev2\Shopify\Lib\AuthRedirection;
+use Msdev2\Shopify\Lib\DbSessionStorage;
+use Msdev2\Shopify\Mail\TicketAdminMail;
+use Msdev2\Shopify\Mail\TicketUserEmail;
+use Msdev2\Shopify\Models\Session as ModelsSession;
+use Msdev2\Shopify\Models\Shop;
+use Msdev2\Shopify\Utils as ShopifyUtils;
+use Ramsey\Uuid\Nonstandard\Uuid;
+use Shopify\Auth\Session;
+use Shopify\Clients\HttpHeaders;
+use Shopify\Context;
+use Shopify\Utils;
+use Shopify\Webhooks\Registry;
+use Msdev2\Shopify\Jobs\HandleShopInstalledJob;
+
+class ShopifyController extends BaseController
+{
+
+    function fallback(Request $request)
+    {
+        $this->clearCache();
+        Log::error("install fallback app on ", [$request->all(), $_SERVER]);
+        $shopName = $request->shop ?? null;
+        if (strpos($request->getRequestUri(), config("msdev2.proxy_path")) !== false && !isset($request->shop)) {
+            $shopName = $_SERVER['HTTP_HOST'];
+        }
+        if ($shopName) {
+            $shop = Shop::where('shop', $shopName)->orWhere('domain', $shopName)->first();
+            if (!$shop) {
+                return redirect(config("app.url") . '/authenticate?shop=' . $shopName);
+            }
+            if (ShopifyUtils::shouldRedirectToEmbeddedApp($request))
+                return redirect(Utils::getEmbeddedAppUrl($request->query("host", null)) . "/" . $request->path());
+            return false;
+        }
+        return ["status" => "fallback success"];
+    }
+
+    public function install(Request $request)
+    {
+        if(config('msdev2.debug')) Log::info("Install called", ['request' => $request->all()]);
+        return AuthRedirection::redirect($request);
+    }
+
+    public function help(Request $request)
+    {
+        return view("msdev2::help");
+    }
+
+    public function generateToken(Request $request)
+    {
+        $this->clearCache();
+        $shared_secret = config("msdev2.shopify_api_secret");
+        $api_key = config('msdev2.shopify_api_key');
+        $params = $request->all(); // Retrieve all request parameters
+        $hmac = $request->get('hmac'); // Retrieve HMAC request parameter
+        $params = array_diff_key($params, array('hmac' => '')); // Remove hmac from params
+        ksort($params); // Sort params lexographically
+
+        // Compute SHA256 digest
+        $computed_hmac = hash_hmac('sha256', http_build_query($params), $shared_secret);
+
+        // Use hmac data to check that the response is from Shopify or not
+        if (!hash_equals($hmac, $computed_hmac)) {
+            return "NOT VALIDATED – Someone is trying to be shady!";
+        }
+        $host = $request->query('host');
+        $shopName = Utils::sanitizeShopDomain($request->query('shop'));
+
+        $query = array(
+            "client_id" => $api_key, // Your API key
+            "client_secret" => $shared_secret, // Your app credentials (secret key)
+            "code" => $params['code'] // Grab the access key from the URL
+        );
+        // Generate access token URL
+        $url = "https://" . $shopName . "/admin/oauth/access_token";
+        $result = Http::withOptions(['verify' => false])->post($url, $query);
+        if(config('msdev2.debug')) \Log::info("Access token response", ['response' => $result->json()]);
+        $shop = Shop::updateOrCreate(
+            ['shop' => $shopName],
+            ['scope' => $result->json("scope"), 'is_uninstalled' => 0, 'access_token' => $result->json("access_token")]
+        );
+        $shop->refresh();
+        $redirectUrl = Utils::getEmbeddedAppUrl($host);
+        // Webhook registration deferred to HandleShopInstalledJob to speed up install
+        Context::initialize(
+            apiKey: config('msdev2.shopify_api_key'),
+            apiSecretKey: config('msdev2.shopify_api_secret'),
+            scopes: config('msdev2.scopes'),
+            hostName: $host,
+            sessionStorage: new DbSessionStorage(),
+            apiVersion: config('msdev2.api_version'),
+            isEmbeddedApp: config('msdev2.is_embedded_app'),
+            isPrivateApp: config('msdev2.is_private_app', false),
+        );
+        $session = ShopifyUtils::getSession($shop->shop);
+        if ($session) {
+            $sessionStore = new Session($session, $shop->shop, true, Uuid::uuid4()->toString());
+            $sessionStore->setScope(Context::$SCOPES->toString());
+            $sessionStore->setAccessToken($shop->access_token);
+            $sessionStore->setExpires(strtotime('+1 day'));
+            Context::$SESSION_STORAGE->storeSession($sessionStore);
+        }
+
+        // Ensure free billing plan is created synchronously so user lands on dashboard
+        $finalRedirect = $redirectUrl;
+        if (config('msdev2.billing') && !$shop->activeCharge) {
+            $planList = config('msdev2.plan', []);
+            $freePlan = null;
+            foreach ($planList as $p) {
+                if (isset($p['amount']) && (float)$p['amount'] === 0.0) {
+                    $freePlan = $p;
+                    break;
+                }
+            }
+
+            if ($freePlan) {
+                try {
+                    $planType = 'free';
+                    $billingOn = Carbon::now();
+                    $trialDay = ($freePlan['trialDays'] ?? 0) > $shop->appUsedDay() ? ($freePlan['trialDays'] - $shop->appUsedDay()) : 0;
+
+                    $shop->charges()->create([
+                        'charge_id' => 0,
+                        'name' => $freePlan['chargeName'],
+                        'test' => !(app()->environment() === 'production'),
+                        'status' => 'active',
+                        'type' => $planType,
+                        'price' => $freePlan['amount'],
+                        'interval' => $freePlan['interval'] ?? 'ONE_TIME',
+                        'capped_amount' => $freePlan['cappedAmount'] ?? 0,
+                        'trial_days' => $trialDay,
+                        'billing_on' => $billingOn,
+                        'activated_on' => Carbon::now(),
+                        'trial_ends_on' => Carbon::now()->addDays($trialDay),
+                    ]);
+
+                    if (class_exists(PlanPurchaseCompleted::class)) {
+                        PlanPurchaseCompleted::dispatch($shop, null, $freePlan['chargeName']);
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning('Failed to create free plan synchronously: ' . $e->getMessage(), ['shop' => $shop->shop]);
+                    // If creating free plan failed, send user to plan selection
+                    $finalRedirect = $redirectUrl . '/plan';
+                }
+            } else {
+                // Billing enabled but no free plan configured — send to plan page
+                $finalRedirect = $redirectUrl . '/plan';
+            }
+        }
+
+        // Fetch shop details synchronously and persist so views have `detail` immediately
+        try {
+            $response = ShopifyUtils::rest($shop)->get('shop');
+            $data = $response->getDecodedBody();
+            if (isset($data['shop'])) {
+                $shop->detail = $data['shop'];
+                $shop->domain = $data['shop']['domain'] ?? $shop->shop;
+                $shop->save();
+            } else {
+                Log::warning('generateToken: shop details missing from REST response', ['shop' => $shop->shop]);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('generateToken: failed fetching shop details', ['shop' => $shop->shop, 'error' => $e->getMessage()]);
+        }
+
+        // Dispatch background job for remaining install tasks (keep signature expected by job)
+        try {
+            HandleShopInstalledJob::dispatch($shop->id, $shop->shop, $request->all(), $host);
+        } catch (\Throwable $e) {
+            Log::warning('Failed to dispatch HandleShopInstalledJob: ' . $e->getMessage(), ['shop' => $shop->shop]);
+        }
+
+        return redirect($finalRedirect);
+    }
+
+    public function webhooksAction(Request $request, $name = null)
+    {
+        $rawHeaders = $request->headers->all();
+        $headers = new HttpHeaders($rawHeaders);
+        if ($name) {
+            $shared_secret = config("msdev2.shopify_api_secret");
+            $hmac = $request->get('hmac') ?? HttpHeaders::X_SHOPIFY_HMAC;
+            $computed_hmac = hash_hmac('sha256', http_build_query($request->all()), $shared_secret);
+
+            // Use hmac data to check that the response is from Shopify or not
+            if (!isset($hmac) || !hash_equals($hmac, $computed_hmac)) {
+                return mErrorResponse("Invalid HMAC request", [], 401);
+            }
+            return mSuccessResponse("Valid http request");
+        }
+        $missingHeaders = $headers->diff(
+            [HttpHeaders::X_SHOPIFY_HMAC, HttpHeaders::X_SHOPIFY_TOPIC, HttpHeaders::X_SHOPIFY_DOMAIN],
+            false,
+        );
+
+        if (!empty($missingHeaders)) {
+            $missingHeaders = implode(', ', $missingHeaders);
+            return mErrorResponse("Missing one or more of the required HTTP headers to process webhooks", [$missingHeaders], 401);
+        }
+        $topic = $headers->get(HttpHeaders::X_SHOPIFY_TOPIC);
+        $hookClass = ucwords(str_replace('/', ' ', $topic));
+        $classWebhookFramework = "\\Msdev2\\Shopify\\Webhook\\" . str_replace(' ', '', $hookClass);
+        $classWebhookModules = "\\Modules\\" . explode('.',request()->getHost())[0] . "\\Http\\Webhook\\" . str_replace(' ', '', $hookClass);
+        $classWebhook = "\\App\\Webhook\\Handlers\\" . str_replace(' ', '', $hookClass);
+        $shopName = $headers->get(HttpHeaders::X_SHOPIFY_DOMAIN);
+        // Deduplicate identical webhook payloads for the same shop/topic to avoid repeated DB work
+        $payload = $request->getContent() ?? '';
+        $payloadHash = sha1($payload);
+        $dedupeKey = 'webhook_dedupe:' . ($shopName ?: 'unknown') . ':' . ($topic ?: 'unknown') . ':' . $payloadHash;
+        if (Cache::has($dedupeKey)) {
+            // Already seen this exact payload recently — respond 200 to Shopify and skip processing
+            return mSuccessResponse('Duplicate webhook ignored');
+        }
+        // Mark this payload as seen briefly (60s)
+        Cache::put($dedupeKey, true, 60);
+
+        // Acquire a short lock per-shop to prevent concurrent processing storms
+        $lockKey = 'webhook_lock:' . ($shopName ?: 'global');
+        $lock = Cache::lock($lockKey, 60);
+        if (!$lock->get()) {
+            // Another process is handling webhooks for this shop — skip to avoid duplicate DB ops
+            return mSuccessResponse('Webhook processing deferred due to active lock');
+        }
+        if ($hookClass == "AppUninstalled") {
+            ModelsSession::where('shop', $shopName)->delete();
+            $this->clearCache(true);
+        }
+        if (!class_exists($classWebhook) && !class_exists($classWebhookFramework) && !class_exists($classWebhookModules)) {
+            if(config('msdev2.debug')) Log::error("request webhook class not found for topic ".$topic, ['shop' => $shopName, 'webhook' => [$classWebhook,$classWebhookFramework,$classWebhookModules]]);
+            return mSuccessResponse("class not found for hook");
+        }// first modules then app then framework
+        $finalClassWebhook = class_exists($classWebhookModules) ? $classWebhookModules : (class_exists($classWebhook) ? $classWebhook : $classWebhookFramework);
+        // if(config('msdev2.debug')){
+        //     mLog("request webhook for topic ".$topic, ['shop' => $shopName, 'webhook' => $finalClassWebhook]);
+        // }
+        Registry::addHandler(strtoupper(str_replace(' ', '_', $hookClass)), new $finalClassWebhook());
+        try {
+            $response = Registry::process($rawHeaders, $request->getContent());
+            if ($response->isSuccess()) {
+                return mSuccessResponse([$response],"Responded to webhook!");
+            } else {
+                mLog("Webhook handler failed with message: " . $response->getErrorMessage(), [], 'error');
+                return mErrorResponse([],"Webhook handler failed with message: " . $response->getErrorMessage());
+            }
+        } catch (\Exception $error) {
+            // If the exception is an HMAC validation error, log headers and return 401
+            if (class_exists('\\Shopify\\Exception\\InvalidWebhookException') && $error instanceof \Shopify\Exception\InvalidWebhookException) {
+                Log::warning('Webhook HMAC validation failed', ['error' => $error->getMessage(), 'headers' => $rawHeaders, 'shop' => $shopName, 'topic' => $topic, 'request' => $request->all(), 'server'=>$_SERVER]);
+                return mErrorResponse('Invalid webhook HMAC', [], 401);
+            }
+
+            try {
+                $cls = new $finalClassWebhook();
+                mLog('exception while processing webhook: ' . $error->getMessage(), [$error], 'error');
+                // attempt a safe fallback call to handler's handle method, if present
+                if (method_exists($cls, 'handle')) {
+                    // only call fallback if shopName is present
+                    if (empty($shopName)) {
+                        mLog('webhook fallback skipped due to missing shop header', ['topic' => $topic, 'headers' => $rawHeaders]);
+                    } else {
+                        $cls->handle($topic, $shopName, $request->all());
+                    }
+                }
+            } catch (\Exception $inner) {
+                mLog('exception in webhook fallback handler: ' . $inner->getMessage(), [$inner], 'error');
+            }
+            return mErrorResponse('exception : ' . $error->getMessage(), [$error]);
+        } finally {
+            // release lock
+            try { $lock->release(); } catch (\Throwable $e) { /* ignore */ }
+        }
+    }
+    
+    /**
+     * Persist review result (success true/false) and schedule next review.
+     */
+    public function markReviewRequested(Request $request)
+    {
+        $shop = mShop();
+        if (!$shop) return mErrorResponse('Shop not found', [], 404);
+
+        $success = (bool) ($request->input('success') ?? false);
+
+        try {
+            // store the raw result for auditing
+            $shop->meta('request-review-result', ['success' => $success, 'at' => Carbon::now()->toDateTimeString()]);
+
+            // schedule next review to avoid immediate repeats
+            $shop->meta('request-review', Carbon::now()->addDays(30)->toDateTimeString());
+
+            return mSuccessResponse(['next' => $shop->meta('request-review'), 'result' => $success]);
+        } catch (\Throwable $e) {
+            Log::warning('markReviewRequested failed', ['shop' => $shop->shop ?? null, 'error' => $e->getMessage()]);
+            return mErrorResponse('Failed to set next review date');
+        }
+    }
+    public function ticket(Request $request)
+    {
+        return view("msdev2::ticket");
+    }
+    public function ticketStore(Request $request)
+    {
+        $request->validate([
+            'email' => 'required',
+            'subject' => 'required|max:150',
+            'category' => 'required',
+            'detail' => 'required|max:2000'
+        ]);
+        $shop = mShop();
+        $filelist = [];
+        if(!empty($request->input("files"))){
+            foreach($request->input("files") as $file){
+                list($mime, $base64Data) = explode(';', $file['source']);
+                $base64Data = explode(',', $base64Data);
+                // Get the file extension from the mime type
+                $extension = $file["extension"];
+                $decodedImage = base64_decode($base64Data[1]);
+                // Generate a unique filename with the extracted extension
+                $filename = '/' . mShopName() . '/' . uniqid() . '.' . $extension;
+                $filelist[] = $filename;
+                // Define the storage path
+                $storagePath = ('public'.$filename); // You can adjust the storage path as needed
+                // Save the image to the storage path
+                Storage::put($storagePath, $decodedImage);
+            }
+        }
+        $data = $shop->tickets()->create([
+            'email'=>$request->email,
+            'subject'=>$request->subject,
+            'category'=>$request->category,
+            'detail'=>$request->detail,
+            'password'=>$request->password,
+            'priority'=>$request->priority,
+            'ip_address'=>$request->ip(),
+            'files'=>implode(",",$filelist),
+        ]);
+        if($data){
+            $input = $request->all();
+            $email = config('msdev2.contact_email','mragankshekhatr@gmail.com');
+            if(!empty($email)) {
+                Mail::to(config('msdev2.contact_email','mragankshekhatr@gmail.com'))->queue(new TicketAdminMail($input, $shop, "New ticket Created"));
+            }
+            Mail::to($request->email)->queue(new TicketUserEmail("Acknowledgement of Your Ticket Creation", $data));
+            
+            return mSuccessResponse($data);
+        }
+        return mErrorResponse();
+    }
+
+    private function clearCache($all = false): void
+    {
+        if ($all) Artisan::call('cache:forget shop');
+        Artisan::call('cache:forget shopname');
+    }
+}

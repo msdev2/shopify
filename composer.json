@@ -1,0 +1,64 @@
+{
+    "name": "msdev2/shopify",
+    "description": "setup basic shopify app like install and all",
+    "type": "library",
+    "keywords": [
+        "api",
+        "callback-url",
+        "driver",
+        "facade",
+        "laravel",
+        "laravel-package",
+        "laravel-shopify",
+        "scripttags",
+        "sdk",
+        "shopify",
+        "shopify-api",
+        "shopify-app",
+        "webhook"
+    ],
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/",
+            "Msdev2\\Shopify\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "mragank",
+            "email": "contact@mragank.com"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {
+        "laravel/framework": "^8.0 || ^9.0 || ^10.0 || ^11.0 || ^12.0",
+        "shopify/shopify-api": "^6.0"
+    },
+    "prefer-stable": true,
+    "extra": {
+        "laravel": {
+            "assets": [
+                {
+                    "source": "resources/assets",
+                    "publish": "public/msdev2"
+                }
+            ],
+            "providers": [
+                "Msdev2\\Shopify\\ShopifyServiceProvider"
+            ]
+        }
+    },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/mssinfo/shopify.git"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/msdev2/shopify/issues",
+        "forum": "https://github.com/msdev2/shopify/discussions",
+        "wiki": "https://github.com/msdev2/shopify/wiki",
+        "source": "https://github.com/msdev2/shopify"
+    }
+}

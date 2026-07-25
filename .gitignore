@@ -1,0 +1,7 @@
+/bin
+/build
+/vendor
+/.vscode
+composer.lock
+.DS_Store
+/node_modules

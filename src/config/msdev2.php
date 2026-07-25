@@ -1,0 +1,179 @@
+<?php
+return [
+    'debug' => env('MSDEV2_DEBUG', false),
+    'force_https' => env('MSDEV2_FORCE_HTTPS', true),
+    // HTTP client tuning
+    'http_connect_timeout' => env('MSDEV2_HTTP_CONNECT_TIMEOUT', 5),
+    'http_timeout' => env('MSDEV2_HTTP_TIMEOUT', 15),
+    'http_retries' => env('MSDEV2_HTTP_RETRIES', 2),
+    "shopify_api_key"=>env('SHOPIFY_API_KEY', '63f2fa001dd7228268d7c5f920f9b28b'),
+    "shopify_api_secret"=>env('SHOPIFY_API_SECRET', '47f72686a3950d8f9bf307f5eea1f071'),
+    "scopes"=>env('SHOPIFY_API_SCOPES', 'read_content,read_files,write_files,read_themes,write_themes,write_metaobject_definitions,read_metaobjects,write_metaobjects,read_themes,read_metaobject_definitions'),
+    "app_id"=>env('SHOPIFY_APP_ID', 'msdev2'),
+    "api_version"=>env('SHOPIFY_API_VERSION', '2025-10'),
+    "webhooks"=>env('SHOPIFY_WEBHOOKS', 'APP_UNINSTALLED,SHOP_UPDATE,APP_SUBSCRIPTIONS_UPDATE'),
+    'appbridge_enabled' => (bool) env('SHOPIFY_APPBRIDGE_ENABLED', true),
+    "appbridge_version"=>env('SHOPIFY_APPBRIDGE_VERSION', '3'),
+    "is_embedded_app"=> (bool) env('SHOPIFY_IS_EMBEDDED_APP',true) ?? true,
+    "enable_alpinejs"=> (bool) env('SHOPIFY_ENABLE_ALPINEJS',true) ?? true,
+    "enable_turbolinks"=> (bool) env('SHOPIFY_ENABLE_TURBOLINKS',true) ?? true,
+    "enable_polaris"=> (bool) env('SHOPIFY_ENABLE_POLARIS',false) ?? false,
+    "tawk_url"=> env('TAWK_URL',''),
+    "tidio_url"=> env('TIDIO_URL',''),
+    "footer"=>env('SHOPIFY_FOOTER', '<p>Copyright &copy; All right reserved.</p>'),
+    "test_stores"=>env('SHOPIFY_TEST_STORES',''),
+    "shopify_app_url"=>env('SHOPIFY_APP_URL',''),
+    'contact_url'=>env('SHOPIFY_CONTACT_URL',''),
+    'contact_email'=>env('SHOPIFY_CONTACT_EMAIL',''),
+    'proxy_path' => env('SHOPIFY_PROXY_PATH', 'styfly'), // alwasy a/ as predix ex: a/styfly
+    'extension_id' => env('SHOPIFY_EXTENSION_ID', 'Laravel'),
+    'extension_name' => env('SHOPIFY_EXTENSION_NAME', 'Laravel'),
+    'extension_app_name' => env('SHOPIFY_EXTENSION_APP_NAME', 'Laravel'),
+    'tables'=>env('SHOPIFY_DYNAMIC_CONFIG_TABLES',''),
+    /* Payment provider selection: 'payu' or 'stripe' */
+    'payment_provider' => env('MSDEV2_PAYMENT_PROVIDER','payu'),
+    'payu'=>[
+        'key'=>env('PAYU_KEY','AOO79J'),
+        'salt'=>env('PAYU_SALT','VA75tnAxK6eEvKOVTBjZOcsqCtGmV0BE'),
+        'url'=>env('PAYU_URL','https://test.payu.in/_payment'),
+    ],
+    'stripe' => [
+        'secret' => env('STRIPE_SECRET',''),
+        'publishable' => env('STRIPE_KEY',''),
+        'currency' => env('STRIPE_CURRENCY','USD'),
+    ],
+        'paypal' => [
+            // PayPal credentials and mode: 'sandbox' or 'live'
+            'client_id' => env('PAYPAL_CLIENT_ID', ''),
+            'secret' => env('PAYPAL_SECRET', ''),
+            'mode' => env('PAYPAL_MODE', 'sandbox'),
+            'currency' => env('PAYPAL_CURRENCY', 'USD'),
+        ],
+    "menu"=>[
+        'logo'=>[
+            'type'=>'url',//image,url,
+            'value'=>'https://styfly.in/server/img/styfly.png?v=1'
+        ],
+        'list'=>[
+            [
+                'label'=> 'Dashboard',
+                'destination'=> '/',
+                'icon'=>'<i class="icon-home"></i>', //optional
+                'position'=>'all',//sidebar,topbar*,all,
+                'type'=>'web' //vue,web*,laravel
+            ],
+            [
+                'label'=> 'Setting',
+                'destination'=> 'setting',
+                'position'=>'all',//sidebar,topbar*,all,
+                'icon'=>'<i class="icon-gear"></i>'
+            ],
+            [
+                'label'=> 'Support',
+                'destination'=> 'help',
+                'position'=>'all',//sidebar,topbar*,all,
+                'icon'=>'<i class="icon-users"></i>'
+            ]
+        ]
+    ],
+    "billing" => env('SHOPIFY_BILLING', true),
+    "plan_offer"=>[
+        "enable"=>false,
+        "heading"=>"Annual Plan Offer",
+        "detail"=>"<p align='left'>Maximize your savings with the Annual Plan. Enjoy<strong> up to 17% </strong>off. Sign up now!</p>",
+        "yearly"=>[
+            "info"=>"save 16%+",
+            "offer"=>"get_2_months_free"
+        ]
+    ],
+    "plan"=>[
+        [
+            'chargeName'=>'FREE',
+            'interval'=>'EVERY_30_DAYS',//EVERY_30_DAYS|ANNUAL|ONE_TIME
+            'amount'=>0,
+            'currencyCode'=>'USD',
+            'cappedAmount' => 1000, // maximum charge limit use 0 if not required credit
+            'trialDays'=>0,
+            'properties'=>[ // for plan desigining
+                [
+                    'name'=>'Rain on page',
+                    'help_text'=>'', //optional
+                    'value'=>'true', //true=check,false=cross
+                ],
+                [
+                    'name'=>'Add Url',
+                    'help_text'=>'Add spaecific url where you want to show rain',
+                    'value'=>'false', //true=check,false=cross,string
+                ],
+                [
+                    'name'=>'Set Timing',
+                    'help_text'=>'Set timing for rain in and out on page',
+                    'value'=>'false', //true=check,false=cross,string
+                ],
+                [
+                    'name'=>'Change rain speed',
+                    'help_text'=>'Set speed of rain',
+                    'value'=>'false', //true=check,false=cross,string
+                ],
+                [
+                    'name'=>'Change rain image',
+                    'help_text'=>'Set Image for rain',
+                    'value'=>'false', //true=check,false=cross,string
+                ],
+                [
+                    'name'=>'Email Support',
+                    'value'=>'true',
+                ]
+            ],
+            'feature'=>[ // for develoepr
+                'plan'=>'all',
+                'credit'=>100,
+                'perUnitPrice'=>0.02,
+            ]
+        ],
+        [
+            'chargeName'=>'PRO',
+            'interval'=>'EVERY_30_DAYS',//EVERY_30_DAYS|ANNUAL|ONE_TIME
+            'amount'=>1.5,
+            'currencyCode'=>'USD',
+            'trialDays'=>7,
+            'cappedAmount' => 1000, // maximum charge limit use 0 if not required credit
+            'properties'=>[
+                [
+                    'name'=>'Rain on page',
+                    'help_text'=>'', //optional
+                    'value'=>'true', //true=check,false=cross
+                ],
+                [
+                    'name'=>'Add Url',
+                    'help_text'=>'Add spaecific url where you want to show rain',
+                    'value'=>'true', //true=check,false=cross,string
+                ],
+                [
+                    'name'=>'Set Timing',
+                    'help_text'=>'Set timing for rain in and out on page',
+                    'value'=>'true', //true=check,false=cross,string
+                ],
+                [
+                    'name'=>'Change rain speed',
+                    'help_text'=>'Set speed of rain',
+                    'value'=>'true', //true=check,false=cross,string
+                ],
+                [
+                    'name'=>'Change rain image',
+                    'help_text'=>'Set Image for rain',
+                    'value'=>'true', //true=check,false=cross,string
+                ],
+                [
+                    'name'=>'Email Support',
+                    'value'=>'true',
+                ]
+            ],
+            'feature'=>[ // for develoepr
+                'plan'=>'all',
+                'perUnitPrice'=>0.02,
+                'credit'=>1000,
+            ]
+        ]
+    ]
+];
