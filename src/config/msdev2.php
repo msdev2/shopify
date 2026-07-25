@@ -6,8 +6,8 @@ return [
     'http_connect_timeout' => env('MSDEV2_HTTP_CONNECT_TIMEOUT', 5),
     'http_timeout' => env('MSDEV2_HTTP_TIMEOUT', 15),
     'http_retries' => env('MSDEV2_HTTP_RETRIES', 2),
-    "shopify_api_key"=>env('SHOPIFY_API_KEY', '63f2fa001dd7228268d7c5f920f9b28b'),
-    "shopify_api_secret"=>env('SHOPIFY_API_SECRET', '47f72686a3950d8f9bf307f5eea1f071'),
+    "shopify_api_key"=>env('SHOPIFY_API_KEY', ''),
+    "shopify_api_secret"=>env('SHOPIFY_API_SECRET', ''),
     "scopes"=>env('SHOPIFY_API_SCOPES', 'read_content,read_files,write_files,read_themes,write_themes,write_metaobject_definitions,read_metaobjects,write_metaobjects,read_themes,read_metaobject_definitions'),
     "app_id"=>env('SHOPIFY_APP_ID', 'msdev2'),
     "api_version"=>env('SHOPIFY_API_VERSION', '2025-10'),
@@ -33,8 +33,8 @@ return [
     /* Payment provider selection: 'payu' or 'stripe' */
     'payment_provider' => env('MSDEV2_PAYMENT_PROVIDER','payu'),
     'payu'=>[
-        'key'=>env('PAYU_KEY','AOO79J'),
-        'salt'=>env('PAYU_SALT','VA75tnAxK6eEvKOVTBjZOcsqCtGmV0BE'),
+        'key'=>env('PAYU_KEY',''),
+        'salt'=>env('PAYU_SALT',''),
         'url'=>env('PAYU_URL','https://test.payu.in/_payment'),
     ],
     'stripe' => [
