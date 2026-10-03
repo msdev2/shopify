@@ -45,8 +45,7 @@ trait HasMetafields
 
         $namespace = $namespace !== '' ? $namespace : config('msdev2.app_id');
         
-        \Log::info("HasMetafields: deleteMetaField called for key={$key}, namespace={$namespace}, isPrivateMeta=" . ($isPrivateMeta ? 'true' : 'false'));
-
+       
         if ($isPrivateMeta) {
             self::deletePrivateMetaField($shop, $namespace, $key);
         } else {
@@ -202,7 +201,6 @@ trait HasMetafields
         $res = mGraph($shop)->query(['query' => $query, 'variables' => $variables])->getDecodedBody();
         if (!empty($res['errors'])) {
             $err = is_array($res['errors']) ? $res['errors'] : ['message' => (string)$res['errors']];
-            \Log::error('setPublicMetaField Top-level Error', $err);
         } elseif (!empty($res['data']['metafieldsSet']['userErrors'])) {
             \Log::error('setPublicMetaField GraphQL Error', $res['data']['metafieldsSet']['userErrors']);
         } else {
@@ -229,11 +227,8 @@ trait HasMetafields
         $res = mGraph($shop)->query(['query' => $query, 'variables' => $variables])->getDecodedBody();
         if (!empty($res['errors'])) {
             $err = is_array($res['errors']) ? $res['errors'] : ['message' => (string)$res['errors']];
-            \Log::error('deletePublicMetaField Top-level Error', $err);
         } elseif (!empty($res['data']['metafieldsDelete']['userErrors'])) {
-            \Log::error('deletePublicMetaField GraphQL Error', $res['data']['metafieldsDelete']['userErrors']);
         } else {
-            \Log::info('deletePublicMetaField Success', ['metafield' => $key]);
         }
     }
 }

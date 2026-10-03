@@ -86,13 +86,10 @@ class Model extends LAravelModel {
                 $data = $model::where('shop_id', $model->shop_id)->get();
                 $key = $model->getTable();
                 
-                \Log::info("SyncMeta (multi): action={$action}, model={$key}, shop={$model->shop_id}, isEmpty=" . ($data->isEmpty() ? 'true' : 'false'));
                 if ($data->isEmpty()) {
-                    \Log::info("SyncMeta: Data is empty. Deleting metafield namespace=" . config('msdev2.app_id') . " key={$key} metaPublic=" . ($model->metaPublic ? 'true' : 'false'));
                     $shop->deleteMetaField($key, config('msdev2.app_id'), !$model->metaPublic);
                 } else {
                     $value = json_encode($data);
-                    \Log::info("SyncMeta: Setting metafield key={$key} with data length=" . count($data));
                     $shop->setMetaField([
                         'namespace' => config('msdev2.app_id'),
                         'key'       => $key,
