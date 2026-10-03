@@ -202,9 +202,8 @@ trait HasMetafields
         if (!empty($res['errors'])) {
             $err = is_array($res['errors']) ? $res['errors'] : ['message' => (string)$res['errors']];
         } elseif (!empty($res['data']['metafieldsSet']['userErrors'])) {
-            \Log::error('setPublicMetaField GraphQL Error', $res['data']['metafieldsSet']['userErrors']);
         } else {
-            \Log::info('setPublicMetaField Success', ['metafield' => $metaField['key']]);
+    
         }
     }
 
