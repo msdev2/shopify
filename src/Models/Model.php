@@ -24,7 +24,7 @@ class Model extends LAravelModel {
             $model->syncMeta($model,'update');
         });
 
-        static::deleting(function ($model) {
+        static::deleted(function ($model) {
             $model->syncMeta($model,'delete');
         });
     }
@@ -85,13 +85,21 @@ class Model extends LAravelModel {
             }else{
                 $data = $model::where('shop_id', $model->shop_id)->get();
                 $key = $model->getTable();
-                $value = json_encode($data);
-                $shop->setMetaField([
-                    'namespace' => config('msdev2.app_id'),
-                    'key'       => $key,
-                    'value'     => $value,
-                    'type'      => 'json',
-                ], !$model->metaPublic);
+                
+                \Log::info("SyncMeta (multi): action={$action}, model={$key}, shop={$model->shop_id}, isEmpty=" . ($data->isEmpty() ? 'true' : 'false'));
+                if ($data->isEmpty()) {
+                    \Log::info("SyncMeta: Data is empty. Deleting metafield namespace=" . config('msdev2.app_id') . " key={$key} metaPublic=" . ($model->metaPublic ? 'true' : 'false'));
+                    $shop->deleteMetaField($key, config('msdev2.app_id'), !$model->metaPublic);
+                } else {
+                    $value = json_encode($data);
+                    \Log::info("SyncMeta: Setting metafield key={$key} with data length=" . count($data));
+                    $shop->setMetaField([
+                        'namespace' => config('msdev2.app_id'),
+                        'key'       => $key,
+                        'value'     => $value,
+                        'type'      => 'json',
+                    ], !$model->metaPublic);
+                }
             }
         } catch (\Throwable $e) {
             Log::error("Failed metafield sync [{$action}]: {$e->getMessage()}", [

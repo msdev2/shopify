@@ -77,38 +77,12 @@ window.$GLOBALS = {
         }
     },
     modal : (modalOptions, successFun, errorFun) =>{
-        modalOptions = {...{
-                title: 'title',
-                size: actions.Modal.Size.small,
-            },
-            ...modalOptions
-        };
-        if(typeof successFun == 'function'){
-            const okButton = actions.Button.create(app, {label: 'Ok'});
-            const cancelButton = actions.Button.create(app, {label: 'Cancel'});
-            modalOptions.footer = {
-                buttons: {
-                  primary: okButton,
-                  secondary: [cancelButton],
-                }
-            }
-            okButton.subscribe(actions.Button.Action.CLICK, () => {
-                successFun()
-                myModal.dispatch(actions.Modal.Action.CLOSE);
-            });
-            if(typeof errorFun == 'function'){
-                cancelButton.subscribe(actions.Button.Action.CLICK, () => {
-                    errorFun()
-                    myModal.dispatch(actions.Modal.Action.CLOSE);
-                });
-            }else{
-                cancelButton.subscribe(actions.Button.Action.CLICK, () => {
-                    myModal.dispatch(actions.Modal.Action.CLOSE);
-                });
-            }
+        let msg = modalOptions.title || 'Are you sure?';
+        if (confirm(msg)) {
+            if (typeof successFun == 'function') successFun();
+        } else {
+            if (typeof errorFun == 'function') errorFun();
         }
-        const myModal = actions.Modal.create(app, modalOptions);
-        myModal.dispatch(actions.Modal.Action.OPEN);
     }
 }
 // Normalize path: trim trailing slash, ensure leading slash for comparison
