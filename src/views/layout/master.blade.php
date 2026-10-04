@@ -45,6 +45,63 @@
            <link rel="stylesheet" href="{{ asset($cssPath) }}?v={{ filemtime($cssFile) }}">
         @endif
         @yield('styles')
+
+<style>
+/* ---------------- Polaris Style Main Menu (Global) ---------------- */
+nav {
+    display: flex;
+    align-items: center;
+    background-color: #ffffff;
+    border-bottom: 1px solid #e1e3e5;
+    margin-bottom: 24px;
+    padding: 0 16px;
+    box-shadow: inset 0 -1px 0 0 #e1e3e5;
+}
+nav .menu-toggle, nav .logo {
+    display: none !important;
+}
+nav .menu-list {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    overflow-x: auto;
+    gap: 0;
+}
+nav .menu-list a.menu {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    color: #6d7175;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.2s, background-color 0.2s;
+    background: transparent !important;
+    float: none !important;
+}
+nav .menu-list a.menu i, nav .menu-list a.menu svg {
+    width: 20px;
+    height: 20px;
+    fill: currentColor;
+}
+nav .menu-list a.menu:hover {
+    color: #202223;
+    background-color: #f4f6f8 !important;
+    border-radius: 4px 4px 0 0;
+}
+nav .menu-list a.menu.active {
+    color: #008060 !important;
+    background-color: #f3fcf8 !important;
+    border-bottom-color: #008060 !important;
+}
+nav .right.menu {
+    margin-left: auto;
+}
+</style>
+
         
     </head>
     <body>

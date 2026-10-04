@@ -39,12 +39,13 @@ trait HasMetafields
     {
         $shop = method_exists($this, 'shop') ? $this->shop : $this;
         if (!$shop) {
-            if(config('msdev2.debug')) Log::warning('deleteMetaField skipped: Shop context could not be determined.');
+            if(config('msdev2.debug')) \Log::warning('deleteMetaField skipped: Shop context could not be determined.');
             return;
         }
 
         $namespace = $namespace !== '' ? $namespace : config('msdev2.app_id');
-
+        
+       
         if ($isPrivateMeta) {
             self::deletePrivateMetaField($shop, $namespace, $key);
         } else {
@@ -168,14 +169,19 @@ trait HasMetafields
     private static function deletePrivateMetaField($shop, string $namespace, string $key): void
     {
         $query = <<<'GQL'
-            mutation metafieldDelete($namespace: String!, $key: String!) {
-                metafieldDelete(namespace: $namespace, key: $key) {
-                    deletedId
+            mutation metafieldsDelete($metafields: [MetafieldIdentifierInput!]!) {
+                metafieldsDelete(metafields: $metafields) {
+                    deletedMetafields { ownerId namespace key }
                     userErrors { field message }
                 }
             }
         GQL;
-        $variables = ['namespace' => $namespace, 'key' => $key];
+        $appInstallationId = self::getAppInstallationId($shop);
+        $variables = ['metafields' => [[
+            'ownerId' => $appInstallationId,
+            'namespace' => $namespace,
+            'key' => $key
+        ]]];
         mGraph($shop)->query(['query' => $query, 'variables' => $variables])->getDecodedBody();
     }
 
@@ -189,22 +195,39 @@ trait HasMetafields
                 }
             }
         GQL;
-        $metaField['ownerId'] = "gid://shopify/Shop/{$shop->shop_id}";
+        $shopId = $shop->detail['id'] ?? $shop->shop_id;
+        $metaField['ownerId'] = "gid://shopify/Shop/{$shopId}";
         $variables = ['metafields' => [$metaField]];
-        mGraph($shop)->query(['query' => $query, 'variables' => $variables])->getDecodedBody();
+        $res = mGraph($shop)->query(['query' => $query, 'variables' => $variables])->getDecodedBody();
+        if (!empty($res['errors'])) {
+            $err = is_array($res['errors']) ? $res['errors'] : ['message' => (string)$res['errors']];
+        } elseif (!empty($res['data']['metafieldsSet']['userErrors'])) {
+        } else {
+    
+        }
     }
 
     private static function deletePublicMetaField($shop, string $namespace, string $key): void
     {
         $query = <<<'GQL'
-            mutation metafieldDelete($namespace: String!, $key: String!) {
-                metafieldDelete(namespace: $namespace, key: $key) {
-                    deletedId
+            mutation metafieldsDelete($metafields: [MetafieldIdentifierInput!]!) {
+                metafieldsDelete(metafields: $metafields) {
+                    deletedMetafields { ownerId namespace key }
                     userErrors { field message }
                 }
             }
         GQL;
-        $variables = ['namespace' => $namespace, 'key' => $key];
-        mGraph($shop)->query(['query' => $query, 'variables' => $variables])->getDecodedBody();
+        $shopId = $shop->detail['id'] ?? $shop->shop_id;
+        $variables = ['metafields' => [[
+            'ownerId' => "gid://shopify/Shop/{$shopId}",
+            'namespace' => $namespace,
+            'key' => $key
+        ]]];
+        $res = mGraph($shop)->query(['query' => $query, 'variables' => $variables])->getDecodedBody();
+        if (!empty($res['errors'])) {
+            $err = is_array($res['errors']) ? $res['errors'] : ['message' => (string)$res['errors']];
+        } elseif (!empty($res['data']['metafieldsDelete']['userErrors'])) {
+        } else {
+        }
     }
 }
