@@ -49,12 +49,6 @@
             ]
         }
     },
-    "repositories": [
-        {
-            "type": "vcs",
-            "url": "https://github.com/mssinfo/shopify.git"
-        }
-    ],
     "support": {
         "issues": "https://github.com/msdev2/shopify/issues",
         "forum": "https://github.com/msdev2/shopify/discussions",

@@ -245,12 +245,23 @@ body {
 }
 
 .plan_page .rsListTitle {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 4px;
     font-size: 14px;
     color: #111213;
     line-height: 15.4px;
 }
 
-.plan_page .planInfoItem {
+.plan_page .rsListTitleItem {
+    display: inline-flex;
+    align-items: center;
+}
+
+.plan_page .planInfoItem,
+.planInfoItem {
+    display: none;
     flex: 1;
 }
 
@@ -641,4 +652,25 @@ body {
     .plan_page .stackItem .getfreetext {
         font-size: 9px;
     }
+}
+/* Additional resilient tooltip rules */
+.plan_page .polaris-icon-svg {
+    width: 16px !important;
+    height: 16px !important;
+    min-width: 16px !important;
+    min-height: 16px !important;
+    max-width: 16px !important;
+    max-height: 16px !important;
+    fill: #6d7175 !important;
+    display: inline-block !important;
+    vertical-align: middle !important;
+}
+.plan_page .polaris-help-icon:hover .polaris-icon-svg {
+    fill: #202223 !important;
+}
+.plan_page .polaris-help-icon:hover + .polaris-tooltip,
+.plan_page .polaris-tooltip-wrapper:hover .polaris-tooltip {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }

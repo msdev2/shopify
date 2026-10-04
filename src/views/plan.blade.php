@@ -2,11 +2,6 @@
 @section('css', 'plan')
 @section('content')
 <link href="https://fonts.googleapis.com/css2?family=Satisfy&display=swap" rel="stylesheet">
-<style>
-.planInfoItem {
-    display: none;
-}
-</style>
 <!-- removed page-specific plan CSS; styles are kept in usage component and usage page -->
 <div class="plan_page">
     @php
@@ -72,7 +67,7 @@
                             @if (isset($hasPlans["EVERY_30_DAYS"]))
                             <div class="planstabsItem @if (!isset($hasPlans["ONE_TIME"])) active @endif" data-plan="EVERY_30_DAYS">
                                 <div class="planTabBtn">
-                                    <span class="plantbText">OneTime</span>
+                                    <span class="plantbText">Monthly</span>
                                 </div>
                             </div>
                             @endif
@@ -112,14 +107,14 @@
                             <li><div class="rsListTitle"><span class="rsListTitleItem">{{$name}}
                                 @if (!$allPropertiesHelpTextsSame && isset($property["help_text"]) && $property["help_text"] !="")
                                 <span class="polaris-tooltip-wrapper">
-                                    <span class="polaris-help-icon" data-tooltip-id="tooltip-{{$loop->index}}">
-                                        <svg viewBox="0 0 20 20" class="polaris-icon-svg" focusable="false" aria-hidden="true">
+                                    <span class="polaris-help-icon" title="{{$property['help_text']}}" data-tooltip-id="tooltip-{{$loop->index}}">
+                                        <svg viewBox="0 0 20 20" class="polaris-icon-svg" focusable="false" aria-hidden="true" width="16" height="16" style="width: 16px !important; height: 16px !important; min-width: 16px !important; min-height: 16px !important; display: inline-block; vertical-align: middle; fill: #6d7175;">
                                             <path d="M10 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2Z"></path>
                                             <path d="M10.75 9.5a.75.75 0 0 0-1.5 0v4a.75.75 0 0 0 1.5 0v-4Z"></path>
                                             <path fill-rule="evenodd" d="M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0Zm-1.5 0a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0Z"></path>
                                         </svg>
                                     </span>
-                                    <span class="polaris-tooltip" id="tooltip-{{$loop->index}}">{{$property["help_text"]}}</span>
+                                    <span class="polaris-tooltip" style="display:none; position:absolute;" id="tooltip-{{$loop->index}}">{{$property["help_text"]}}</span>
                                 </span>
                                 @endif
                             </span></div></li>
@@ -127,14 +122,14 @@
                         @if ($allPropertiesHelpTextsSame && !empty($globalHelpText))
                         <li><div class="rsListTitle"><span class="rsListTitleItem">
                             <span class="polaris-tooltip-wrapper">
-                                <span class="polaris-help-icon" data-tooltip-id="tooltip-global-help">
-                                    <svg viewBox="0 0 20 20" class="polaris-icon-svg" focusable="false" aria-hidden="true">
+                                <span class="polaris-help-icon" title="{{$globalHelpText}}" data-tooltip-id="tooltip-global-help">
+                                    <svg viewBox="0 0 20 20" class="polaris-icon-svg" focusable="false" aria-hidden="true" width="16" height="16" style="width: 16px !important; height: 16px !important; min-width: 16px !important; min-height: 16px !important; display: inline-block; vertical-align: middle; fill: #6d7175;">
                                         <path d="M10 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2Z"></path>
                                         <path d="M10.75 9.5a.75.75 0 0 0-1.5 0v4a.75.75 0 0 0 1.5 0v-4Z"></path>
                                         <path fill-rule="evenodd" d="M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0Zm-1.5 0a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0Z"></path>
                                     </svg>
                                 </span>
-                                <span class="polaris-tooltip" id="tooltip-global-help">{{$globalHelpText}}</span>
+                                <span class="polaris-tooltip" style="display:none; position:absolute;" id="tooltip-global-help">{{$globalHelpText}}</span>
                             </span>
                         </span></div></li>
                         @endif
@@ -174,14 +169,14 @@
                                             @endif
                                             @if (!$allPropertiesHelpTextsSame && isset($plan["properties"][$name]["help_text"]) && $plan["properties"][$name]["help_text"] !="")
                                             <span class="polaris-tooltip-wrapper plan-feature-tooltip">
-                                                <span class="polaris-help-icon" data-tooltip-id="tooltip-plan-{{$loop->parent->index}}-{{$loop->index}}">
-                                                    <svg viewBox="0 0 20 20" class="polaris-icon-svg" focusable="false" aria-hidden="true">
+                                                <span class="polaris-help-icon" title="{{$plan['properties'][$name]['help_text']}}" data-tooltip-id="tooltip-plan-{{$loop->parent->index}}-{{$loop->index}}">
+                                                    <svg viewBox="0 0 20 20" class="polaris-icon-svg" focusable="false" aria-hidden="true" width="16" height="16" style="width: 16px !important; height: 16px !important; min-width: 16px !important; min-height: 16px !important; display: inline-block; vertical-align: middle; fill: #6d7175;">
                                                         <path d="M10 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2Z"></path>
                                                         <path d="M10.75 9.5a.75.75 0 0 0-1.5 0v4a.75.75 0 0 0 1.5 0v-4Z"></path>
                                                         <path fill-rule="evenodd" d="M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0Zm-1.5 0a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0Z"></path>
                                                     </svg>
                                                 </span>
-                                                <span class="polaris-tooltip" id="tooltip-plan-{{$loop->parent->index}}-{{$loop->index}}">{{$plan["properties"][$name]["help_text"]}}</span>
+                                                <span class="polaris-tooltip" style="display:none; position:absolute;" id="tooltip-plan-{{$loop->parent->index}}-{{$loop->index}}">{{$plan["properties"][$name]["help_text"]}}</span>
                                             </span>
                                             @endif
                                         @else
